@@ -1,0 +1,19 @@
+server:
+  address: :8080
+database:
+  type: postgresql
+  username: root
+  password: pass
+  host: '127.0.0.1'
+  port: 5433
+  name: go_chat
+migration:
+  migrationURL: file://db/migration
+token:
+  jwtSecret: 'JWTSecret'
+  accessTokenDuration: 15m
+  refreshTokenDuration: 24h
+redis:
+  host: 'localhost'
+  port: 6379
+  password: ''
