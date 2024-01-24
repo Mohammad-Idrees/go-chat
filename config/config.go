@@ -2,6 +2,7 @@ package config
 
 import (
 	"log"
+	"os"
 	"time"
 
 	"github.com/spf13/viper"
@@ -16,6 +17,7 @@ type StartupConfig struct {
 }
 
 type ServerConfig struct {
+	Name    string `mapstructure:"name"`
 	Address string `mapstructure:"address"`
 }
 
@@ -49,7 +51,7 @@ func LoadConfig() (*StartupConfig, error) {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yml")
 
-	viper.AutomaticEnv()
+	//viper.AutomaticEnv()
 
 	if err := viper.ReadInConfig(); err != nil {
 		log.Println("failed reading config", err)
@@ -60,6 +62,18 @@ func LoadConfig() (*StartupConfig, error) {
 	if err := viper.Unmarshal(&config); err != nil {
 		return nil, err
 	}
+
+	config.Server.Name = os.Getenv("SERVER_NAME")
+
+	config.Database.Name = os.Getenv("POSTGRES_DB")
+	config.Database.Host = os.Getenv("POSTGRES_HOST")
+	config.Database.Port = os.Getenv("POSTGRES_PORT")
+	config.Database.Username = os.Getenv("POSTGRES_USER")
+	config.Database.Password = os.Getenv("POSTGRES_PASSWORD")
+
+	config.Redis.Host = os.Getenv("REDIS_HOST")
+	config.Redis.Port = os.Getenv("REDIS_PORT")
+	config.Redis.Password = os.Getenv("REDIS_PASSWORD")
 
 	return &config, nil
 }

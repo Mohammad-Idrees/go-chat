@@ -26,26 +26,26 @@ func main() {
 	var wg sync.WaitGroup
 	config, err := config.LoadConfig()
 	if err != nil {
-		log.Fatal("failed loading config file", err)
+		log.Fatalln("failed loading config file", err)
 		return
 	}
 
 	redis, err := newRedis(config)
 	if err != nil {
-		log.Fatal("failed connecting to redis")
+		log.Fatalln("failed connecting to redis", err)
 		return
 	}
 
 	database, err := newDatabase(config)
 	if err != nil {
-		log.Fatal("failed connecting to database", err)
+		log.Fatalln("failed connecting to database", err)
 		return
 	}
 	defer database.ConnPool.Close()
 
 	err = runMigration(config)
 	if err != nil {
-		log.Fatal("failed to run migration", err)
+		log.Fatalln("failed to run migration ", err)
 		return
 	}
 
@@ -56,7 +56,7 @@ func main() {
 	}
 
 	// Init Hub
-	hub := chat.InitHub(&wg, redis.Client)
+	hub := chat.InitHub(&wg, config, redis.Client)
 
 	repository := db.NewRepository(database)
 	tokenService := service.ConfigureTokenService(config, repository)
@@ -70,7 +70,7 @@ func main() {
 
 	err = router.Run(config.Server.Address)
 	if err != nil {
-		log.Fatal("failed to start server")
+		log.Fatalln("failed to start server")
 		return
 	}
 }
@@ -94,13 +94,12 @@ func newRedis(config *config.StartupConfig) (*models.Redis, error) {
 	}, nil
 }
 
-func runMigration(config *config.StartupConfig) error {
-	dbCfg := config.Database
-	dbSource := fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=disable", dbCfg.Type, dbCfg.Username, dbCfg.Password, dbCfg.Host, dbCfg.Port, dbCfg.Name)
-	migrationURL := config.Migration.MigrationURL
+func runMigration(cfg *config.StartupConfig) error {
+	dbSource := fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=disable", cfg.Database.Type, cfg.Database.Username, cfg.Database.Password, cfg.Database.Host, cfg.Database.Port, cfg.Database.Name)
+	migrationURL := cfg.Migration.MigrationURL
 	migration, err := migrate.New(migrationURL, dbSource)
 	if err != nil {
-		log.Println("failed to create migration instance", err)
+		log.Println("failed to create migration instance", dbSource, err)
 		return err
 	}
 
