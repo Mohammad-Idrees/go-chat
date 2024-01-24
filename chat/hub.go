@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"project/config"
 	db "project/db/sqlc"
 	"project/logger"
 	"sync"
@@ -27,9 +28,10 @@ type Hub struct {
 	WriteBroadcast       chan *Message
 	wg                   *sync.WaitGroup
 	MembershipUpdates    chan *db.Membership
+	serverName           string
 }
 
-func newHub(wg *sync.WaitGroup, redisClient *redis.Client) *Hub {
+func newHub(wg *sync.WaitGroup, cfg *config.StartupConfig, redisClient *redis.Client) *Hub {
 	return &Hub{
 		redisClient:          redisClient,
 		ChannelSubscriptions: make(map[int64]int),
@@ -42,11 +44,12 @@ func newHub(wg *sync.WaitGroup, redisClient *redis.Client) *Hub {
 		WriteBroadcast:       make(chan *Message, 10),
 		wg:                   wg,
 		MembershipUpdates:    make(chan *db.Membership, 10),
+		serverName:           cfg.Server.Name,
 	}
 }
 
-func InitHub(wg *sync.WaitGroup, redisClient *redis.Client) *Hub {
-	hub := newHub(wg, redisClient)
+func InitHub(wg *sync.WaitGroup, cfg *config.StartupConfig, redisClient *redis.Client) *Hub {
+	hub := newHub(wg, cfg, redisClient)
 	pubsub := hub.redisClient.Subscribe(context.Background(), MEMBERSHIP_CHANNEL)
 	go hub.run()
 	go hub.membershipUpdatesReader(pubsub)
@@ -136,7 +139,7 @@ func (hub *Hub) addClient(client *Client) {
 	hub.Clients[client.Id] = client
 	for _, membership := range client.Memberships {
 		hub.WriteBroadcast <- &Message{
-			Content:   "user is active",
+			Content:   fmt.Sprintf("user connected to server %s", hub.serverName),
 			ChannelId: membership.ChannelID,
 			Username:  hub.Clients[membership.UserID].Username,
 		}
@@ -153,7 +156,7 @@ func (hub *Hub) removeClient(client *Client) {
 	// remove client from memory
 	for _, membership := range client.Memberships {
 		hub.WriteBroadcast <- &Message{
-			Content:   "user is inactive",
+			Content:   fmt.Sprintf("user disconnected from server %s", hub.serverName),
 			ChannelId: membership.ChannelID,
 			Username:  hub.Clients[membership.UserID].Username,
 		}
